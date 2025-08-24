@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<!-- Hero / Banner -->
+<section class="nx-card nx-gradient text-white p-6 md:p-8 mb-6">
+  <div class="flex items-center gap-4 md:gap-8">
+    <div class="shrink-0 text-5xl md:text-6xl">💰</div>
+    <div>
+      <div class="text-xs md:text-sm opacity-90">출석 / 포인트 / 보너스</div>
+      <h2 class="text-2xl md:text-3xl font-extrabold tracking-tight">티끌모아 태산, 포인트 적립!</h2>
+      <p class="opacity-90 mt-1">부스 이용하고 포인트 받고, 실시간 랭킹에 도전하세요.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Quick stats (if logged-in student) -->
+<section class="grid md:grid-cols-3 gap-3 mb-6">
+  <div class="nx-card bg-white p-4 flex items-center justify-between">
+    <div>
+      <div class="text-xs text-slate-500">내 포인트</div>
+      <div class="text-2xl font-extrabold">
+        {% if current_user.is_authenticated and current_user.role == 'student' %}
+          {{ current_user.points or 0 }}
+        {% else %}—
+        {% endif %}
+      </div>
+    </div>
+    <span class="pill bg-emerald-50 text-emerald-700">P</span>
+  </div>
+  <div class="nx-card bg-white p-4 flex items-center justify-between">
+    <div>
+      <div class="text-xs text-slate-500">부스 수</div>
+      <div class="text-2xl font-extrabold">{{ booths|length }}</div>
+    </div>
+    <span class="pill bg-indigo-50 text-indigo-700">🎪</span>
+  </div>
+  <div class="nx-card bg-white p-4 flex items-center justify-between">
+    <div>
+      <div class="text-xs text-slate-500">지도 / 안내</div>
+      <div class="text-2xl font-extrabold">{{ maps|length }}</div>
+    </div>
+    <span class="pill bg-amber-50 text-amber-700">🗺️</span>
+  </div>
+</section>
+
+<!-- Quick actions -->
+<section class="nx-card bg-white p-5 mb-6">
+  <div class="grid grid-cols-4 md:grid-cols-8 gap-4 text-center">
+    <a href="#booths" class="flex flex-col items-center gap-2">
+      <div class="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">🎪</div>
+      <div class="text-xs">부스보기</div>
+    </a>
+    <a href="#leader" class="flex flex-col items-center gap-2">
+      <div class="w-12 h-12 rounded-2xl bg-violet-50 flex items-center justify-center">🏆</div>
+      <div class="text-xs">랭킹</div>
+    </a>
+    <a href="#maps" class="flex flex-col items-center gap-2">
+      <div class="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center">🗺️</div>
+      <div class="text-xs">학교지도</div>
+    </a>
+    <a href="{{ url_for('admin_login') }}" class="flex flex-col items-center gap-2">
+      <div class="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center">🛠️</div>
+      <div class="text-xs">관리자</div>
+    </a>
+  </div>
+</section>
+
+<div class="grid md:grid-cols-3 gap-6">
+  <!-- 부스 -->
+  <section id="booths" class="md:col-span-2">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-xl font-extrabold">부스 현황</h3>
+      <a href="{{ url_for('admin_login') }}" class="text-sm text-indigo-600 hover:underline">관리자 로그인</a>
+    </div>
+    <div id="booth-list" class="grid md:grid-cols-2 gap-4">
+      {% for b in booths %}
+      <a href="{{ url_for('booth_page', booth_id=b.id) }}" class="block bg-white nx-card p-4 hover:shadow-xl transition">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-xl">🎯</div>
+          <div class="min-w-0">
+            <div class="font-semibold truncate">{{ b.name }}</div>
+            <div class="text-sm text-slate-600 mt-1">대기열 <span id="q-{{ b.id }}" class="font-bold">{{ b.queue_length }}</span>명</div>
+          </div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- 랭킹 -->
+  <aside id="leader" class="nx-card bg-white p-6">
+    <h3 class="text-xl font-extrabold mb-3">🏆 실시간 TOP 10</h3>
+    <ol id="top10" class="space-y-2">
+      {% for u in top10 %}
+      <li class="flex justify-between text-sm bg-slate-50 rounded-lg px-3 py-2">
+        <span class="truncate">{{ loop.index }}. {{ u.name }} ({{ u.student_id }})</span>
+        <span class="font-bold">{{ u.points }}</span>
+      </li>
+      {% endfor %}
+    </ol>
+  </aside>
+</div>
+
+<!-- 지도 -->
+<section id="maps" class="nx-card bg-white p-6 mt-6">
+  <h3 class="text-xl font-extrabold mb-4">학교 지도</h3>
+  {% if maps|length == 0 %}
+    <div class="text-sm text-slate-500">관리자에서 이미지를 추가하세요.</div>
+  {% else %}
+    <div class="space-y-4">
+      {% for m in maps %}
+      <a href="{{ url_for('uploaded_file', filename=m.filename) }}" target="_blank" class="block">
+        <img src="{{ url_for('uploaded_file', filename=m.filename) }}"
+             alt="학교 지도 {{ loop.index }}"
+             class="w-full rounded-xl object-contain max-h-[70vh] bg-gray-100">
+      </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+</section>
+
+<script>
+  const socket = io();
+  socket.emit('join', {room: 'leaderboard'});
+  socket.emit('join', {room: 'booths'});
+
+  socket.on('queue_update', (data) => {
+    const el = document.getElementById('q-' + data.booth_id);
+    if (el) el.textContent = data.queue_length;
+  });
+
+  socket.on('leaderboard', (list) => {
+    const ol = document.getElementById('top10');
+    ol.innerHTML = '';
+    list.forEach((row, idx) => {
+      const li = document.createElement('li');
+      li.className = 'flex justify-between text-sm bg-slate-50 rounded-lg px-3 py-2';
+      li.innerHTML = `<span class="truncate">${idx+1}. ${row.name} (${row.student_id})</span><span class="font-bold">${row.points}</span>`;
+      ol.appendChild(li);
+    });
+  });
+</script>
+{% endblock %}

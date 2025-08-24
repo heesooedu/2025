@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-md mx-auto nx-card bg-white p-6">
+  <h2 class="text-xl font-extrabold mb-4">학생 로그인</h2>
+  <form method="post" class="space-y-4">
+    <div>
+      <label class="block text-sm mb-1">학번</label>
+      <input name="student_id" class="w-full border rounded-lg p-2" required>
+    </div>
+    <div>
+      <label class="block text-sm mb-1">PIN (6~8자리)</label>
+      <input type="password" name="pin" class="w-full border rounded-lg p-2" required>
+    </div>
+    <button class="w-full bg-indigo-600 text-white rounded-lg py-2 font-semibold hover:bg-indigo-700">로그인</button>
+  </form>
+</div>
+{% endblock %}

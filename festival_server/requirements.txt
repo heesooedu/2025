@@ -1,0 +1,10 @@
+Flask==2.3.3
+Flask-SocketIO==5.3.6
+eventlet==0.36.1
+SQLAlchemy==2.0.29
+Flask-SQLAlchemy==3.1.1
+Flask-Login==0.6.3
+passlib[bcrypt]==1.7.4
+pandas==2.2.2
+qrcode==7.4.2
+Pillow==10.3.0

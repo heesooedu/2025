@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="nx-card bg-white overflow-hidden">
+  {% if booth.image_path %}
+  <div class="relative">
+    <img class="w-full max-h-[420px] object-cover" src="{{ url_for('uploaded_file', filename=booth.image_path) }}" alt="{{ booth.name }}">
+    <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-black/0"></div>
+    <div class="absolute bottom-4 left-4 text-white">
+      <h2 class="text-2xl md:text-3xl font-extrabold">{{ booth.name }}</h2>
+      <div class="text-sm text-white/90 mt-1">대기 인원: <span id="queue">{{ booth.queue_length }}</span>명</div>
+    </div>
+  </div>
+  {% else %}
+  <div class="p-6">
+    <h2 class="text-2xl md:text-3xl font-extrabold">{{ booth.name }}</h2>
+    <div class="text-sm text-slate-600 mt-1">대기 인원: <span id="queue">{{ booth.queue_length }}</span>명</div>
+  </div>
+  {% endif %}
+
+  <div class="p-6">
+    <h3 class="font-semibold">부스 소개</h3>
+    <div class="mt-2 whitespace-pre-line text-slate-700">{{ booth.description }}</div>
+  </div>
+</div>
+
+<!-- 대기명단 -->
+<div class="nx-card bg-white p-6 mt-6">
+  <h3 class="text-lg font-semibold mb-2">대기 명단</h3>
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead>
+        <tr class="text-left text-gray-500">
+          <th class="py-2 pr-2">#</th>
+          <th class="py-2 pr-2">학번</th>
+          <th class="py-2 pr-2">이름</th>
+          <th class="py-2 pr-2">등록시간</th>
+        </tr>
+      </thead>
+      <tbody id="wl-list"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  const socket = io();
+  socket.emit('join', {room: 'booths'});
+  socket.emit('join', {room: 'booth_{{ booth.id }}'});
+
+  axios.get(`/api/waitlist/{{ booth.id }}`).then(res => {
+    renderWaitlist(res.data.entries);
+    document.getElementById('queue').textContent = res.data.count;
+  });
+
+  socket.on('queue_update', (data) => {
+    if (data.booth_id === {{ booth.id }}) {
+      document.getElementById('queue').textContent = data.queue_length;
+    }
+  });
+
+  socket.on('waitlist_update', (data) => {
+    if (data.booth_id === {{ booth.id }}) {
+      renderWaitlist(data.entries);
+      document.getElementById('queue').textContent = data.count;
+    }
+  });
+
+  function renderWaitlist(entries) {
+    const tbody = document.getElementById('wl-list');
+    tbody.innerHTML = '';
+    entries.forEach((e, idx) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="py-2 pr-2">${idx+1}</td>
+        <td class="py-2 pr-2">${e.student_id || ''}</td>
+        <td class="py-2 pr-2">${e.name}</td>
+        <td class="py-2 pr-2">${(e.created_at || '').replace('T',' ')}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+</script>
+{% endblock %}

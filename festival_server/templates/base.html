@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2025 수락제</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.7.7/axios.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --brand-1:#6e6bff;
+      --brand-2:#8b5cf6;
+      --brand-3:#22c55e;
+      --brand-4:#f59e0b;
+      --ink:#0f172a;
+    }
+    body { font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple SD Gothic Neo', 'Pretendard', 'Malgun Gothic', sans-serif; }
+    .nx-card { border-radius: 1rem; box-shadow: 0 16px 40px rgba(2,6,23,.08); }
+    .nx-gradient { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #22c55e 120%); }
+    .pill { border-radius: 999px; padding:.25rem .6rem; font-weight:600; }
+    .tap { display:flex; flex-direction:column; align-items:center; gap:.25rem; font-size:.75rem;}
+    .tap i{ font-size:1.3rem; }
+    .safe-pad { padding-bottom: 90px; } /* bottom-nav 공간 확보 */
+  </style>
+</head>
+<body class="bg-gray-50 text-[15px] text-slate-900">
+  <!-- Top App Bar -->
+  <header class="sticky top-0 z-40 backdrop-blur bg-white/80 border-b">
+    <div class="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+      <a href="{{ url_for('index') }}" class="font-extrabold tracking-tight text-[18px] text-indigo-600 hover:opacity-90">🎉 2025 수락제</a>
+
+      <!-- 데스크톱 내비 -->
+      <nav class="hidden md:flex items-center gap-4 text-sm">
+        <a class="hover:text-indigo-600" href="{{ url_for('index') }}">홈</a>
+        {% if current_user.is_authenticated and current_user.role == 'student' %}
+          <span class="text-slate-500">안녕하세요, {{ current_user.name }}님</span>
+          <a class="hover:text-indigo-600" href="{{ url_for('student_logout') }}">학생 로그아웃</a>
+        {% else %}
+          <a class="hover:text-indigo-600" href="{{ url_for('student_login') }}">학생 로그인</a>
+        {% endif %}
+        <a class="hover:text-indigo-600" href="{{ url_for('admin_login') }}">관리자</a>
+      </nav>
+
+      <!-- 🟣 모바일 전용: 우측 상단 버튼(로그인/로그아웃) -->
+      <div class="md:hidden">
+        {% if current_user.is_authenticated and current_user.role == 'student' %}
+          <a href="{{ url_for('student_logout') }}" class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-slate-900 text-white" title="학생 로그아웃">🚪</a>
+        {% else %}
+          <a href="{{ url_for('student_login') }}" class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-indigo-600 text-white" title="학생 로그인">👤</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <!-- Page -->
+  <main class="max-w-6xl mx-auto px-4 py-6 safe-pad">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="mb-4 space-y-2">
+        {% for m in messages %}
+          <div class="p-3 rounded-xl bg-amber-50 text-amber-800">{{ m }}</div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Bottom Tab (mobile) -->
+  <nav class="md:hidden fixed bottom-0 inset-x-0 z-40 border-t bg-white/95 backdrop-blur">
+    <!-- 기존 4칸 → 5칸으로 확장, 학생 버튼 추가 -->
+    <div class="grid grid-cols-5 max-w-3xl mx-auto py-2">
+      <a class="tap" href="{{ url_for('index') }}"><i>🏠</i><span>홈</span></a>
+      <a class="tap" href="{{ url_for('index') }}#booths"><i>🎪</i><span>부스</span></a>
+      <a class="tap" href="{{ url_for('index') }}#leader"><i>🏆</i><span>랭킹</span></a>
+      <a class="tap" href="{{ url_for('index') }}#maps"><i>🗺️</i><span>지도</span></a>
+
+      {% if current_user.is_authenticated and current_user.role == 'student' %}
+        <a class="tap" href="{{ url_for('student_logout') }}"><i>🚪</i><span>로그아웃</span></a>
+      {% else %}
+        <a class="tap" href="{{ url_for('student_login') }}"><i>👤</i><span>학생</span></a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <!-- 알림 토스트 -->
+  <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 hidden bg-slate-900 text-white px-4 py-2 rounded-xl shadow-lg z-50"></div>
+
+  <script>
+    // 학생 로그인 상태면 공용/개인 방 참가 + notify 토스트
+    {% if current_user.is_authenticated and current_user.role == 'student' %}
+      const socketBase = io();
+      socketBase.emit('join', {room: 'students'});
+      socketBase.emit('join', {room: 'user_{{ current_user.id }}'});
+
+      socketBase.on('notify', (data) => {
+        const toast = document.getElementById('toast');
+        toast.textContent = (data?.from ? `[${data.from}] ` : '') + (data?.message || '');
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 3500);
+      });
+    {% endif %}
+  </script>
+
+  <footer class="text-center text-xs text-gray-500 py-10">© 2025 수락제 운영팀</footer>
+</body>
+</html>
